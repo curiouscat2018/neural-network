@@ -7,6 +7,9 @@ import (
 
 func main() {
 	p := minst.NewTrainingDataProvider()
-	image := p.GetNextImage()
-	fmt.Println(image.Label)
+	for i := 0; i < 10; i++ {
+		image := p.GetNextImage()
+		image.PrettyPrint()
+		fmt.Println()
+	}
 }

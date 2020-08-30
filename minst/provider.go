@@ -4,8 +4,12 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
+
+// Side length of image.
+const N = 28
 
 type Provider interface {
 	HasNextImage() bool
@@ -57,12 +61,12 @@ func (p *provider) GetNextImage() *Image {
 	}
 
 	label := p.read1ByteInt(p.labelsReader)
-	pixels := make([][]int, 28)
-	for i := 0; i < 28; i++ {
-		pixels = append(pixels, p.read28BytesIntSlice(p.imagesReader))
-
+	pixels := make([][]uint8, N)
+	for i := 0; i < N; i++ {
+		pixels[i] = p.readNBytesSlice(p.imagesReader)
 	}
 
+	p.curIndex++
 	return &Image{
 		Pixels: pixels,
 		Label:  label,
@@ -81,11 +85,11 @@ func (p *provider) prepare() {
 	}
 	p.size = size
 
-	if rowSize := p.read4BytesInt(p.imagesReader); rowSize != 28 {
+	if rowSize := p.read4BytesInt(p.imagesReader); rowSize != N {
 		panic("invalid row size")
 	}
 
-	if colSize := p.read4BytesInt(p.imagesReader); colSize != 28 {
+	if colSize := p.read4BytesInt(p.imagesReader); colSize != N {
 		panic("invalid col size")
 	}
 
@@ -110,33 +114,26 @@ func (p *provider) read1ByteInt(reader *bufio.Reader) int {
 
 func (p *provider) read4BytesInt(reader *bufio.Reader) int {
 	bytes := make([]byte, 4)
-	n, err := reader.Read(bytes)
+	_, err := io.ReadFull(reader, bytes)
 	if err != nil {
 		panic(err)
-	}
-
-	if n != 4 {
-		panic("failed to read 4 bytes")
 	}
 
 	res := binary.BigEndian.Uint32(bytes)
 	return int(res)
 }
 
-func (p *provider) read28BytesIntSlice(reader *bufio.Reader) []int {
-	bytes := make([]byte, 28)
-	n, err := reader.Read(bytes)
+func (p *provider) readNBytesSlice(reader *bufio.Reader) []uint8 {
+	bytes := make([]byte, N)
+	_, err := io.ReadFull(reader, bytes)
+
 	if err != nil {
 		panic(err)
 	}
 
-	if n != 28 {
-		panic("failed to read 28 bytes")
-	}
-
-	res := make([]int, 28)
-	for i := 0; i < 28; i++ {
-		res[i] = int(bytes[i])
+	res := make([]uint8, N)
+	for i := 0; i < N; i++ {
+		res[i] = uint8(bytes[i])
 	}
 
 	return res
